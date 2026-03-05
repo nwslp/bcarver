@@ -1,0 +1,15 @@
+file_types:
+  - name: "jpg"
+    header: "FFD8FFE0"
+    footer: "FFD9"
+    max_size: 31457280
+
+  - name: "png"
+    header: "89504E470D0A1A0A"
+    footer: "49454E44AE426082"
+    max_size: 52428800
+
+  - name: "gif"
+    header: "474946383961"
+    footer: "00003b"
+    max_size: 131072

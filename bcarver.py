@@ -82,20 +82,19 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
             )
 
             while chunk := f.read(block_size):
-                search_buf = chunk + prev_chunk
+                search_buf = prev_chunk + chunk
+                pbar.update(block_size)
                 
                 for ft in file_types:
                     pos = 0
                     while (pos := search_buf.find(ft['header'], pos)) != -1:
                         # хедер найден
-                        abs_pos = f.tell() - block_size + pos
+                        abs_pos = f.tell() - block_size - overlap + pos
                         candidates.append((abs_pos, ft))
                         pos += 1
                 
                 # исключаем вариант его локации на границе блоков
                 prev_chunk = chunk[-overlap:]
-
-                pbar.update(block_size)
                 
             pbar.close()
             
@@ -114,7 +113,7 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
 def carve_files(input_path: str, output_dir: str, candidates: list, block_size: int, max_footer_len: int):
     """ Поблочный поиск футеров для всех потенциальных файлов;
         Запись и логирование извлеченных файлов."""
-    extracted = 1
+    count = 0
     overlap = max_footer_len-1
     prev_chunk = b''
     
@@ -136,11 +135,13 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 if ft['footer']:
                     while chunk := f.read(block_size):
+                        pbar.update(block_size)
+                        
                         if (f.tell() - offset) > ft['max_size']:
                             # достигнут предел максимального размера файла
                             file_data += chunk
                             break
-                        search_buf = chunk + prev_chunk
+                        search_buf = prev_chunk + chunk
                         
                         if (footer_pos := search_buf.find(ft['footer'])) == -1:
                             # футер в чанке не найден
@@ -152,38 +153,36 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                             
                         # исключаем вариант его локации на границе блоков
                         prev_chunk = chunk[-overlap:]
-
-                        pbar.update(block_size)
                 else:
                     # если футер не назначен
                     file_data = f.read(ft['max_size'])
                 
                 pbar.close()
+                count += 1
                            
                 # записываем найденный файл
-                filename = f"{extracted:06d}.{ft['name']}"
+                filename = f"{count:06d}.{ft['name']}"
                 full_path = os.path.join(output_dir, filename)
 
                 with open(full_path, 'wb') as out:
                     out.write(file_data)
                 
                 print(f"\t{filename}\t{hsize(len(file_data))}\t@ offset {hex(offset)}")
-                extracted += 1
                 
+        return count
+    
     except KeyboardInterrupt:
         print(f"(x) SIGINT")
         sys.exit(1)
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)
-    
-    return (extracted-1)
 
 def hsize(n: int | float) -> str:
     # human-readable byte size converter
     for unit in " KMGTPE":
         if n < 1024:
-            return f"{n:.1f}{unit}B"
+            return f"{round(n,1)}{unit}B"
         n /= 1024
 
 def main():
@@ -199,7 +198,6 @@ def main():
     
     file_types, max_h, max_f = load_config(args.config)
     print(f"Loaded {len(file_types)} file types")
-    
     
     # Поиск заголовков
     print("-> Searching for headers..")

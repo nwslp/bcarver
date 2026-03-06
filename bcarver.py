@@ -115,14 +115,13 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
         Запись и логирование извлеченных файлов."""
     count = 0
     overlap = max_footer_len-1
-    prev_chunk = b''
     
     try:
         with open(input_path, 'rb') as f:
             for offset, ft in candidates:
                 f.seek(offset)
                 file_data=b''
-                
+                prev_chunk = b''
                 
                 pbar = tqdm(
                     total=ft['max_size'],

@@ -161,9 +161,11 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 pbar.close()
                 count += 1
                            
-                # записываем найденный файл
+                # записываем найденный файл в соответствующую папку
+                ext_dir = os.path.join(output_dir, ft['name'])
+                os.makedirs(ext_dir, exist_ok=True)
                 filename = f"{count:06d}.{ft['name']}"
-                full_path = os.path.join(output_dir, filename)
+                full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:
                     out.write(file_data)

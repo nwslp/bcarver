@@ -135,12 +135,13 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 if ft['footer']:
                     while chunk := f.read(block_size):
-                        pbar.update(block_size)
+                        pbar.update(len(chunk))
                         
                         if (f.tell() - offset) > ft['max_size']:
                             # достигнут предел максимального размера файла
                             file_data += chunk
                             break
+                        
                         search_buf = prev_chunk + chunk
                         
                         if (footer_pos := search_buf.find(ft['footer'])) == -1:
@@ -148,7 +149,8 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                             file_data += chunk
                         else:
                             # футер найден
-                            file_data += search_buf[:footer_pos + len(ft['footer'])]
+                            chunk_pos = footer_pos - len(prev_chunk)
+                            file_data += chunk[:chunk_pos + len(ft['footer'])]
                             break
                             
                         # исключаем вариант его локации на границе блоков

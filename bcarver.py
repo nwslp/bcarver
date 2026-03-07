@@ -45,6 +45,9 @@ def load_config(config_path: str):
         max_footer_len = 0
 
         for item in config['file_types']:
+            if any(k not in item for k in ('name', 'header')):
+                raise ValueError(f"Invalid file type: {item}")
+
             file_types.append({
                 'name': item['name'],
                 'header': bytes.fromhex(item['header']),
@@ -132,7 +135,7 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 ext_dir = os.path.join(output_dir, ft['name'])
                 os.makedirs(ext_dir, exist_ok=True)
-                filename = f"{count+1:06d}.{ft['name']}"
+                filename = f"{hex(offset)[2:]}.{ft['name']}"
                 full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:

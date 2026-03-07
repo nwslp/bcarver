@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 
 def parse_args():
-    """ Обработка аргументов """
+    """ args parsing """
     parser = argparse.ArgumentParser(
         description="bcarver - file carving utility based on a set of file carving patterns"
     )
@@ -32,7 +32,7 @@ def parse_args():
     return parser.parse_args()
     
 def load_config(config_path: str):
-    """ Обработка конфигурационного файла. """
+    """ config load """
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -64,7 +64,7 @@ def load_config(config_path: str):
         sys.exit(1)
 
 def scan_for_headers(input_path: str, file_types: list, start_offset: int, block_size: int, max_header_len: int):
-    """ Поблочный поиск всех хедеров в файле """
+    """ Block by block search of the all headers in a file """
     candidates = []
     overlap = max_header_len-1
     prev_chunk = b''
@@ -91,12 +91,12 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
                 for ft in file_types:
                     pos = 0
                     while (pos := search_buf.find(ft['header'], pos)) != -1:
-                        # хедер найден
+                        # header was found
                         abs_pos = f.tell() - len(search_buf) + pos
                         candidates.append((abs_pos, ft))
                         pos += 1
                 
-                # исключаем вариант его локации на границе блоков
+                # exclude case when footer is on boundary of chunks
                 prev_chunk = chunk[-overlap:]
                 
             pbar.close()
@@ -106,16 +106,16 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
         sys.exit(1)
     except KeyboardInterrupt:
         print(f"(x) SIGINT")
-        return sorted(candidates) # не прерывать; найденные файлы завершить
+        return sorted(candidates) # not interrupt; save the files found
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)
         
-    return sorted(candidates)  # список (offset, ft)
+    return sorted(candidates)
 
 def carve_files(input_path: str, output_dir: str, candidates: list, block_size: int, max_footer_len: int):
-    """ Поблочный поиск футеров для всех потенциальных файлов;
-        Запись и логирование извлеченных файлов."""
+    """ Block by block search for all potential files;
+        extract and log files"""
     count = 0
     overlap = max_footer_len-1
     
@@ -123,7 +123,7 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
         with open(input_path, 'rb') as f:
             for offset, ft in candidates:
                 f.seek(offset)
-                
+
                 pbar = tqdm(
                     total=ft['max_size'],
                     unit="B",
@@ -146,25 +146,25 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                             pbar.update(len(chunk))
                             
                             if (f.tell() - offset) > ft['max_size']:
-                                # достигнут предел максимального размера файла
+                                # reach the limit
                                 out.write(chunk)
                                 break
                             
                             search_buf = prev_chunk + chunk
                             
                             if (footer_pos := search_buf.find(ft['footer'])) == -1:
-                                # футер в чанке не найден
+                                # footer was not found in chunk
                                 out.write(chunk)
                             else:
-                                # футер найден
+                                # footer was found
                                 chunk_pos = footer_pos - len(prev_chunk)
                                 out.write(chunk[:chunk_pos + len(ft['footer'])])
                                 break
                                 
-                            # исключаем вариант его локации на границе блоков
+                            # exclude case when footer is on boundary of chunks
                             prev_chunk = chunk[-overlap:]
                     else:
-                        # если футер не назначен
+                        # no footer
                         out.write(f.read(ft['max_size']))
                         pbar.update(ft['max_size'])
 
@@ -191,10 +191,9 @@ def hsize(n: int | float) -> str:
         n /= 1024
 
 def main():
-    # Парсинг аргументов
     args = parse_args()
 
-    # Верификация вводных
+    # verify args
     if not os.path.exists(args.input_file):
         print(f"(x) file/device '{args.input_file}' does not exist")
         sys.exit(1)
@@ -204,12 +203,10 @@ def main():
     file_types, max_h, max_f = load_config(args.config)
     print(f"Loaded {len(file_types)} file types")
     
-    # Поиск заголовков
     print("-> Searching for headers..")
     candidates = scan_for_headers(args.input_file, file_types, args.skip, args.block_size, max_h)
     print(f"   Found {len(candidates)} candidate files")
     
-    # Извлечение файлов
     print("-> Carving files..")
     num_of_files = carve_files(args.input_file, args.output_dir, candidates, args.block_size, max_f)
 

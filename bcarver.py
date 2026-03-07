@@ -120,8 +120,6 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
         with open(input_path, 'rb') as f:
             for offset, ft in candidates:
                 f.seek(offset)
-                file_data=b''
-                prev_chunk = b''
                 
                 pbar = tqdm(
                     total=ft['max_size'],
@@ -132,46 +130,46 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                     leave=False
                 )
                 
-                if ft['footer']:
-                    while chunk := f.read(block_size):
-                        pbar.update(len(chunk))
-                        
-                        if (f.tell() - offset) > ft['max_size']:
-                            # достигнут предел максимального размера файла
-                            file_data += chunk
-                            break
-                        
-                        search_buf = prev_chunk + chunk
-                        
-                        if (footer_pos := search_buf.find(ft['footer'])) == -1:
-                            # футер в чанке не найден
-                            file_data += chunk
-                        else:
-                            # футер найден
-                            chunk_pos = footer_pos - len(prev_chunk)
-                            file_data += chunk[:chunk_pos + len(ft['footer'])]
-                            break
-                            
-                        # исключаем вариант его локации на границе блоков
-                        prev_chunk = chunk[-overlap:]
-                else:
-                    # если футер не назначен
-                    file_data = f.read(ft['max_size'])
-                
-                pbar.close()
-                count += 1
-                           
-                # записываем найденный файл в соответствующую папку
                 ext_dir = os.path.join(output_dir, ft['name'])
                 os.makedirs(ext_dir, exist_ok=True)
-                filename = f"{count:06d}.{ft['name']}"
+                filename = f"{count+1:06d}.{ft['name']}"
                 full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:
-                    out.write(file_data)
+                    prev_chunk = b''
+                    
+                    if ft['footer']:
+                        while chunk := f.read(block_size):
+                            pbar.update(len(chunk))
+                            
+                            if (f.tell() - offset) > ft['max_size']:
+                                # достигнут предел максимального размера файла
+                                out.write(chunk)
+                                break
+                            
+                            search_buf = prev_chunk + chunk
+                            
+                            if (footer_pos := search_buf.find(ft['footer'])) == -1:
+                                # футер в чанке не найден
+                                out.write(chunk)
+                            else:
+                                # футер найден
+                                chunk_pos = footer_pos - len(prev_chunk)
+                                out.write(chunk[:chunk_pos + len(ft['footer'])])
+                                break
+                                
+                            # исключаем вариант его локации на границе блоков
+                            prev_chunk = chunk[-overlap:]
+                    else:
+                        # если футер не назначен
+                        out.write(f.read(ft['max_size']))
+                        
+                    pbar.close()
+                    fsize = out.tell()
+                    count += 1
                 
-                print(f"\t{filename}\t{hsize(len(file_data))}\t@ offset {hex(offset)}")
-                
+                print(f"\t{filename}\t{hsize(fsize)}\t@ offset {hex(offset)}")
+        
         return count
     
     except KeyboardInterrupt:

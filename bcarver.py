@@ -51,7 +51,7 @@ def load_config(config_path: str):
             file_types.append({
                 'name': item['name'],
                 'header': bytes.fromhex(item['header']),
-                'footer': bytes.fromhex(item['footer'],'') if item.get('footer') else b'',
+                'footer': bytes.fromhex(item['footer']) if item.get('footer') else b'',
                 'max_size': item.get('max_size', 25 * 1024 * 1024) # 25Mb by default
             })
             max_header_len = max(max_header_len, len(file_types[-1]['header']))

@@ -20,7 +20,7 @@ def parse_args():
     )
     
     parser.add_argument('-o', '--output-dir', default='carved_files', help='directory for carved files (\'carved_files\' by default)')
-    parser.add_argument('-s', '--skip', type=int, default=0, help='skip N ibs sized input blocks (default: 0)')
+    parser.add_argument('-s', '--skip', type=int, default=0, help='skip N bytes in input_file (default: 0)')
     parser.add_argument('-b', '--block-size', type=int, default=8192, help='read block size (default: 8192)')
     parser.add_argument('-c', '--config', required=True, help='YAML-config with signatures')
     parser.add_argument('input_file', help='path to a image file or raw device (required)')

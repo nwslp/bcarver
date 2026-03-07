@@ -135,7 +135,7 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 ext_dir = os.path.join(output_dir, ft['name'])
                 os.makedirs(ext_dir, exist_ok=True)
-                filename = f"{hex(offset)[2:]}.{ft['name']}"
+                filename = f"{offset:08x}.{ft['name']}"
                 full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:
@@ -178,7 +178,7 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
     
     except KeyboardInterrupt:
         print(f"(x) SIGINT")
-        sys.exit(1)
+        return count # not interrupt
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)

@@ -135,19 +135,20 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 ext_dir = os.path.join(output_dir, ft['name'])
                 os.makedirs(ext_dir, exist_ok=True)
-                filename = f"{offset:08x}.{ft['name']}"
+                filename = f"{offset:x}.{ft['name']}"
                 full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:
-                    prev_chunk = b''
-                    
                     if ft['footer']:
+                        prev_chunk = b''
+
                         while chunk := f.read(block_size):
                             pbar.update(len(chunk))
-                            
+
                             if (f.tell() - offset) > ft['max_size']:
                                 # reach the limit
-                                out.write(chunk)
+                                print(f.tell() - offset - ft['max_size'])
+                                out.write(chunk[:-(f.tell() - offset - ft['max_size'])])
                                 break
                             
                             search_buf = prev_chunk + chunk
@@ -155,14 +156,12 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                             if (footer_pos := search_buf.find(ft['footer'])) == -1:
                                 # footer was not found in chunk
                                 out.write(chunk)
+                                prev_chunk = chunk[-overlap:]
                             else:
                                 # footer was found
                                 chunk_pos = footer_pos - len(prev_chunk)
                                 out.write(chunk[:chunk_pos + len(ft['footer'])])
                                 break
-                                
-                            # exclude case when footer is on boundary of chunks
-                            prev_chunk = chunk[-overlap:]
                     else:
                         # no footer
                         out.write(f.read(ft['max_size']))

@@ -147,8 +147,8 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
 
                             if (f.tell() - offset) > ft['max_size']:
                                 # reach the limit
-                                print(f.tell() - offset - ft['max_size'])
-                                out.write(chunk[:-(f.tell() - offset - ft['max_size'])])
+                                forcut = f.tell() - offset - ft['max_size']
+                                out.write(chunk[:-forcut])
                                 break
                             
                             search_buf = prev_chunk + chunk
@@ -167,8 +167,8 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                         out.write(f.read(ft['max_size']))
                         pbar.update(ft['max_size'])
 
-                    pbar.close()
                     fsize = out.tell()
+                    pbar.close()
                     count += 1
                 
                 print(f"\t{filename}\t{hsize(fsize)}\t@ offset {hex(offset)}")

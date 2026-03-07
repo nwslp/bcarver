@@ -89,7 +89,7 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
                     pos = 0
                     while (pos := search_buf.find(ft['header'], pos)) != -1:
                         # хедер найден
-                        abs_pos = f.tell() - block_size - overlap + pos
+                        abs_pos = f.tell() - len(search_buf) + pos
                         candidates.append((abs_pos, ft))
                         pos += 1
                 

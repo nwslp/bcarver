@@ -92,15 +92,18 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
                     pos = 0
                     while (pos := search_buf.find(ft['header'], pos)) != -1:
                         # header was found
-                        abs_pos = f.tell() - len(search_buf) + pos
-                        candidates.append((abs_pos, ft))
+                        offset = f.tell() - len(search_buf) + pos
+                        candidates.append((offset, ft))
                         pos += 1
                 
                 # exclude case when footer is on boundary of chunks
                 prev_chunk = chunk[-overlap:]
                 
             pbar.close()
-            
+
+        # returns a list of potential files. (offset, file type)
+        return sorted(candidates)
+
     except PermissionError:
         print(f"(x) no permission to access {input_path}. Use sudo for /dev/* devices.")
         sys.exit(1)
@@ -110,15 +113,13 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)
-        
-    return sorted(candidates)
 
 def carve_files(input_path: str, output_dir: str, candidates: list, block_size: int, max_footer_len: int):
     """ Block by block search for all potential files;
         extract and log files"""
     count = 0
-    overlap = max_footer_len-1
-    
+    overlap = max_footer_len-1 # catching footers that cross chunks
+
     try:
         with open(input_path, 'rb') as f:
             for offset, ft in candidates:
@@ -173,6 +174,7 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 
                 print(f"\t{filename}\t{hsize(fsize)}\t@ offset {hex(offset)}")
         
+        # returns the number of carved files
         return count
     
     except KeyboardInterrupt:

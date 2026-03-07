@@ -14,7 +14,7 @@ A simple file carving utility that extracts files from disk images or raw device
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.8+
 - Dependencies: `pyyaml`, `tqdm`
 
 Install dependencies with:
@@ -27,10 +27,8 @@ pip install pyyaml tqdm
 Clone the repository:
 ```
 git clone https://github.com/nwslp/bcarver.git
-cd bcarver
+uv tool install bcarver
 ```
-
-No further installation needed; run directly with Python.
 
 ## Usage
 
@@ -49,7 +47,7 @@ python bcarver.py [options] input_file
 
 Example:
 ```
-python bcarver.py -c signatures.yaml -o output /dev/sda
+python bcarver.py -c config.yaml -o carved_files /dev/sda
 ```
 
 ## Configuration

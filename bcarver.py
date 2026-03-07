@@ -83,7 +83,7 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
 
             while chunk := f.read(block_size):
                 search_buf = prev_chunk + chunk
-                pbar.update(block_size)
+                pbar.update(len(chunk))
                 
                 for ft in file_types:
                     pos = 0
@@ -163,7 +163,8 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                     else:
                         # если футер не назначен
                         out.write(f.read(ft['max_size']))
-                        
+                        pbar.update(ft['max_size'])
+
                     pbar.close()
                     fsize = out.tell()
                     count += 1

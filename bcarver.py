@@ -3,6 +3,8 @@
 file carving utility based on a set of file carving patterns
 
 dev : nwslp
+v1.0
+
 """
 
 import argparse

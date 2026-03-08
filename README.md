@@ -27,7 +27,7 @@ pip install pyyaml tqdm
 Clone the repository:
 ```
 git clone https://github.com/nwslp/bcarver.git
-uv tool install bcarver
+uv tool install ./bcarver
 ```
 
 ## Usage

@@ -3,7 +3,7 @@
 file carving utility based on a set of file carving patterns
 
 dev : nwslp
-v1.0
+v1.1
 
 """
 

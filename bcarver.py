@@ -21,9 +21,11 @@ def parse_args():
     )
     
     parser.add_argument('-o', '--output-dir', default='carved_files', help='directory for carved files (\'carved_files\' by default)')
-    parser.add_argument('-s', '--skip', type=int, default=0, help='skip N bytes in input_file (default: 0)')
+    parser.add_argument('-s', '--skip', type=int, default=0, help="skip N bytes in input_file (default: 0)")
     parser.add_argument('-b', '--block-size', type=int, default=8192, help='read block size (default: 8192)')
     parser.add_argument('-c', '--config', required=True, help='YAML-config with signatures')
+    parser.add_argument('-m', '--min-size', type=int, default=512, help="set the minimum size for carved files (ignores and skip smaller matches; default: 512)")
+    parser.add_argument('--write-on-maxsize', action="store_true", help="enables carving of file when footer was not found within max_size specified in the config file.")
     parser.add_argument('input_file', help='path to a image file or raw device (required)')
     
     if len(sys.argv) == 1:
@@ -115,7 +117,8 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
         print(f"(x) read error: {e}")
         sys.exit(1)
 
-def carve_files(input_path: str, output_dir: str, candidates: list, block_size: int, max_footer_len: int):
+def carve_files(input_path: str, output_dir: str, candidates: list, block_size: int, max_footer_len: int,
+                min_file_size: int, write_on_maxsize: bool):
     """ Block by block search for all potential files;
         extract and log files"""
     count = 0
@@ -141,6 +144,8 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                 full_path = os.path.join(ext_dir, filename)
 
                 with open(full_path, 'wb') as out:
+                    removeflag = False
+
                     if ft['footer']:
                         prev_chunk = b''
 
@@ -149,8 +154,12 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
 
                             if (f.tell() - offset) > ft['max_size']:
                                 # reach the limit
-                                forcut = f.tell() - offset - ft['max_size']
-                                out.write(chunk[:-forcut])
+                                if write_on_maxsize:
+                                    forcut = f.tell() - offset - ft['max_size']
+                                    out.write(chunk[:-forcut])
+                                else:
+                                    # remove the file
+                                    removeflag = True
                                 break
                             
                             search_buf = prev_chunk + chunk
@@ -178,10 +187,20 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
 
                     fsize = out.tell()
                     pbar.close()
-                    count += 1
-                
-                print(f"\t{filename}\t{hsize(fsize)}\t@ offset {hex(offset)}")
-        
+
+                    # minsize check
+                    if fsize <= min_file_size:
+                        removeflag = True
+
+                    if removeflag:
+                        out.flush()
+                        out.close()
+                        os.remove(full_path)
+                        print(f"\t[file did not pass]\t{hsize(fsize)}\t@ offset {hex(offset)}")
+                    else:
+                        count += 1
+                        print(f"\t{filename}\t{hsize(fsize)}\t@ offset {hex(offset)}")
+
         # returns the number of carved files
         return count
     
@@ -217,7 +236,7 @@ def main():
     print(f"   Found {len(candidates)} candidate files")
     
     print("-> Carving files..")
-    num_of_files = carve_files(args.input_file, args.output_dir, candidates, args.block_size, max_f)
+    num_of_files = carve_files(args.input_file, args.output_dir, candidates, args.block_size, max_f, args.min_size, args.write_on_maxsize)
 
 
     print(f"(v) Done! {num_of_files} files successfully carved out.")

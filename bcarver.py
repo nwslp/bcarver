@@ -103,14 +103,14 @@ def scan_for_headers(input_path: str, file_types: list, start_offset: int, block
             pbar.close()
 
         # returns a list of potential files. (offset, file type)
-        return sorted(candidates)
+        return candidates
 
     except PermissionError:
         print(f"(x) no permission to access {input_path}. Use sudo for /dev/* devices.")
         sys.exit(1)
     except KeyboardInterrupt:
         print(f"(x) SIGINT")
-        return sorted(candidates) # not interrupt; save the files found
+        return candidates # not interrupt; save the files found
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)

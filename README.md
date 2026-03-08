@@ -24,10 +24,10 @@ pip install pyyaml tqdm
 
 ## Installation
 
-Clone the repository:
 ```
 git clone https://github.com/nwslp/bcarver.git
-uv tool install ./bcarver
+
+uv tool install ./bcarver # if you use uv
 ```
 
 ## Usage
@@ -43,6 +43,8 @@ python bcarver.py [options] input_file
 - `-s, --skip`: Skip N bytes in input_file (default: 0).
 - `-b, --block-size`: Read block size in bytes (default: 8192).
 - `-c, --config`: Path to YAML config file with signatures (required).
+- `-m, --min-size`: Set the minimum size for carved files (ignores and skip smaller matches; default: 512)
+- `--write-on-maxsize`: Enables carving of file when footer was not found within max_size specified in the config file.
 - `input_file`: Path to disk image file or raw device (required).
 
 Example:

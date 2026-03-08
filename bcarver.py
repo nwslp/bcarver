@@ -166,8 +166,15 @@ def carve_files(input_path: str, output_dir: str, candidates: list, block_size: 
                                 break
                     else:
                         # no footer
-                        out.write(f.read(ft['max_size']))
-                        pbar.update(ft['max_size'])
+                        while chunk := f.read(block_size):
+                            pbar.update(len(chunk))
+                            if (f.tell() - offset) > ft['max_size']:
+                                # reach the limit
+                                forcut = int(f.tell()) - offset - ft['max_size']
+                                out.write(chunk[:-forcut])
+                                break
+                            else:
+                                out.write(chunk)
 
                     fsize = out.tell()
                     pbar.close()

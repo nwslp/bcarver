@@ -11,6 +11,7 @@ import argparse
 import os
 import sys
 import yaml
+import logging
 from tqdm import tqdm
 
 KBYTE_STEP = 1024
@@ -24,40 +25,49 @@ def parse_args():
     )
     
     parser.add_argument(
-        "-o",
-        "--output-dir",
+        "-o", "--output-dir",
         default="carved_files",
         help="directory for carved files ('carved_files' by default)",
     )
+
     parser.add_argument(
-        "-s",
-        "--skip",
+        "-s", "--skip",
         type=int,
         default=0,
         help="skip N bytes in input_file (default: 0)",
     )
+
     parser.add_argument(
-        "-b",
-        "--block-size",
+        "-b", "--block-size",
         type=int,
         default=8192,
         help="read block size (default: 8192)",
     )
+
     parser.add_argument(
-        "-c", "--config", required=True, help="YAML-config with signatures"
+        "-c", "--config",
+        required=True,
+        help="YAML-config with signatures"
     )
+
     parser.add_argument(
-        "-m",
-        "--min-size",
+        "-m", "--min-size",
         type=int,
         default=512,
         help="set the minimum size for carved files (ignores and skip smaller matches; default: 512)",
     )
+
     parser.add_argument(
         "--write-on-maxsize",
         action="store_true",
         help="enables carving of file when footer was not found within max_size specified in the config file.",
     )
+
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='show detailed debug information')
+
     parser.add_argument(
         "input_file", help="path to a image file or raw device (required)"
     )
@@ -75,11 +85,11 @@ def load_config(config_path: str) -> list:
             raise ValueError("'file_types' list missing")
 
     except (FileNotFoundError, yaml.YAMLError) as e:
-        print(f"(x) failed to read or parse config: {e}")
+        logging.error(f"failed to read or parse config: {e}")
         sys.exit(1)
 
     except ValueError as e:
-        print(f"(x) invalid config structure: {e}")
+        logging.error(f"invalid config structure: {e}")
         sys.exit(1)
 
     file_types = []
@@ -95,7 +105,7 @@ def load_config(config_path: str) -> list:
             footer_bytes = bytes.fromhex(item['footer']) if item.get('footer') else b''
 
         except ValueError:
-            print(f"(x) invalid hex string or file type in config for {item}")
+            logging.error(f"invalid hex string or file type in config for {item}")
             sys.exit(1)
 
         file_types.append(
@@ -161,15 +171,15 @@ def scan_for_headers(
         return candidates
 
     except PermissionError:
-        print(f"(x) no permission to access {input_path}. Use sudo for /dev/* devices.")
+        logging.error(f"no permission to access {input_path}. Use sudo for /dev/* devices.")
         sys.exit(1)
 
     except KeyboardInterrupt:
-        print("(x) SIGINT")
+        logging.error("SIGINT")
         return candidates # not interrupt; save the files found
 
     except Exception as e:
-        print(f"(x) read error: {e}")
+        logging.error(f"read error: {e}")
         sys.exit(1)
 
 
@@ -269,11 +279,11 @@ def carve_files(
         return count
     
     except KeyboardInterrupt:
-        print("(x) SIGINT")
+        logging.error("SIGINT")
         return count # not interrupt
 
     except Exception as e:
-        print(f"(x) read error: {e}")
+        logging.error(f"read error: {e}")
         sys.exit(1)
 
 
@@ -288,9 +298,16 @@ def hsize(n: int | float) -> str:
 def main():
     args = parse_args()
 
+    # Configure console output
+    logging.basicConfig(
+        level = logging.DEBUG if args.verbose else logging.ERROR,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%H:%M:%S'
+    )
+
     # verify args
     if not os.path.exists(args.input_file):
-        print(f"(x) file/device '{args.input_file}' does not exist")
+        logging.error(f"file/device '{args.input_file}' does not exist")
         sys.exit(1)
     
     file_types, max_h, max_f = load_config(args.config)

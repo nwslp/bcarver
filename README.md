@@ -61,7 +61,7 @@ The config is a YAML file with a list of `file_types`. Each type must include:
 - `footer`: Hex string for the file footer (optional; if absent, carves up to `max_size`).
 - `max_size`: Maximum bytes to carve if no footer found (default: 25MB).
 
-Example `signatures.yaml`:
+Example `config.yaml`:
 ```yaml
 file_types:
   - name: "jpg"

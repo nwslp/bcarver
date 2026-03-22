@@ -70,35 +70,47 @@ def load_config(config_path: str) -> list:
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
-        
+
         if 'file_types' not in config or not isinstance(config['file_types'], list):
-            raise ValueError("No 'file_types' list found in config")
+            raise ValueError("'file_types' list missing")
 
-        file_types = []
-        max_header_len = 0
-        max_footer_len = 0
+    except (FileNotFoundError, yaml.YAMLError) as e:
+        print(f"(x) failed to read or parse config: {e}")
+        sys.exit(1)
 
-        for item in config['file_types']:
+    except ValueError as e:
+        print(f"(x) invalid config structure: {e}")
+        sys.exit(1)
+
+    file_types = []
+    max_header_len = 0
+    max_footer_len = 0
+
+    for item in config['file_types']:
+        try:
             if any(k not in item for k in ('name', 'header')):
                 raise ValueError(f"Invalid file type: {item}")
 
-            file_types.append(
-                {
-                    'name': item['name'],
-                    'header': bytes.fromhex(item['header']),
-                    'footer': bytes.fromhex(item['footer']) if item.get('footer') else b'',
-                    'max_size': item.get('max_size', DEFAULT_MAX_SIZE)
-                }
-            )
+            header_bytes = bytes.fromhex(item['header'])
+            footer_bytes = bytes.fromhex(item['footer']) if item.get('footer') else b''
 
-            max_header_len = max(max_header_len, len(file_types[-1]['header']))
-            max_footer_len = max(max_footer_len, len(file_types[-1]['footer']))
+        except ValueError:
+            print(f"(x) invalid hex string or file type in config for {item}")
+            sys.exit(1)
+
+        file_types.append(
+            {
+                'name': item['name'],
+                'header': header_bytes,
+                'footer': footer_bytes,
+                'max_size': item.get('max_size', DEFAULT_MAX_SIZE)
+            }
+        )
+
+        max_header_len = max(max_header_len, len(file_types[-1]['header']))
+        max_footer_len = max(max_footer_len, len(file_types[-1]['footer']))
             
-        return file_types, max_header_len, max_footer_len
-
-    except Exception as e:
-        print(f"Config loading error: {e}")
-        sys.exit(1)
+    return file_types, max_header_len, max_footer_len
 
 
 def scan_for_headers(
@@ -117,7 +129,7 @@ def scan_for_headers(
         with open(input_path, 'rb') as f:
             f.seek(start_offset)
             total_size = os.path.getsize(input_path) if os.path.isfile(input_path) else None
-            
+
             pbar = tqdm(
                 total=total_size,
                 initial=start_offset,
@@ -131,7 +143,7 @@ def scan_for_headers(
             while chunk := f.read(block_size):
                 search_buf = prev_chunk + chunk
                 pbar.update(len(chunk))
-                
+
                 for file_type in file_types:
                     pos = 0
                     while (pos := search_buf.find(file_type['header'], pos)) != -1:
@@ -142,7 +154,7 @@ def scan_for_headers(
                 
                 # exclude case when footer is on boundary of chunks
                 prev_chunk = chunk[-overlap:]
-                
+
             pbar.close()
 
         # returns a list of potential files. (offset, file type)
@@ -151,9 +163,11 @@ def scan_for_headers(
     except PermissionError:
         print(f"(x) no permission to access {input_path}. Use sudo for /dev/* devices.")
         sys.exit(1)
+
     except KeyboardInterrupt:
         print("(x) SIGINT")
         return candidates # not interrupt; save the files found
+
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)
@@ -174,6 +188,7 @@ def carve_files(
     overlap = max_footer_len - 1 # catching footers that cross chunks
 
     try:
+        os.makedirs(output_dir, exist_ok=True)
         with open(input_path, 'rb') as f:
             for offset, file_type in candidates:
                 f.seek(offset)
@@ -186,7 +201,7 @@ def carve_files(
                     dynamic_ncols=True,
                     leave=False
                 )
-                
+
                 ext_dir = os.path.join(output_dir, file_type['name'])
                 os.makedirs(ext_dir, exist_ok=True)
                 filename = f"{offset:x}.{file_type['name']}"
@@ -256,6 +271,7 @@ def carve_files(
     except KeyboardInterrupt:
         print("(x) SIGINT")
         return count # not interrupt
+
     except Exception as e:
         print(f"(x) read error: {e}")
         sys.exit(1)
@@ -276,16 +292,19 @@ def main():
     if not os.path.exists(args.input_file):
         print(f"(x) file/device '{args.input_file}' does not exist")
         sys.exit(1)
-
-    os.makedirs(args.output_dir, exist_ok=True)
     
     file_types, max_h, max_f = load_config(args.config)
     print(f"Loaded {len(file_types)} file types")
     
     print("-> Searching for headers..")
     candidates = scan_for_headers(
-        args.input_file, file_types, args.skip, args.block_size, max_h
+        args.input_file,
+        file_types,
+        args.skip,
+        args.block_size,
+        max_h
     )
+
     print(f"   Found {len(candidates)} candidate files")
     
     print("-> Carving files..")
